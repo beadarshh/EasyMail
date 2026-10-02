@@ -13,6 +13,8 @@ export type ListFilter = {
   status?: string;
   q?: string;
   page?: number;
+  /** Rows to return (default PAGE_SIZE). */
+  limit?: number;
 };
 
 export async function listEmails(f: ListFilter) {
@@ -34,6 +36,7 @@ export async function listEmails(f: ListFilter) {
     );
   }
   const page = Math.max(1, f.page ?? 1);
+  const size = f.limit ?? PAGE_SIZE;
   const rows = await db()
     .select({
       id: emails.id,
@@ -58,9 +61,9 @@ export async function listEmails(f: ListFilter) {
     .leftJoin(projects, eq(projects.id, emails.projectId))
     .where(and(...where))
     .orderBy(desc(emails.sentAt))
-    .limit(PAGE_SIZE + 1)
-    .offset((page - 1) * PAGE_SIZE);
-  return { rows: rows.slice(0, PAGE_SIZE), hasMore: rows.length > PAGE_SIZE, page };
+    .limit(size + 1)
+    .offset((page - 1) * size);
+  return { rows: rows.slice(0, size), hasMore: rows.length > size, page };
 }
 
 export type EmailRow = Awaited<ReturnType<typeof listEmails>>["rows"][number];

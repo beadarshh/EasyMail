@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EmailList } from "@/components/email-list";
 import { ListFilters, Pager } from "@/components/list-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { requireSession } from "@/lib/auth";
 import { RefreshStatusBanner } from "@/components/refresh-status-button";
 import { listEmails, listProjects, stuckEmailCount } from "@/lib/queries";
 
@@ -11,7 +12,8 @@ type SP = Promise<Record<string, string | undefined>>;
 
 export default async function SentPage({ searchParams }: { searchParams: SP }) {
   const params = await searchParams;
-  const [projects, stuck, { rows, hasMore, page }] = await Promise.all([
+  const [, projects, stuck, { rows, hasMore, page }] = await Promise.all([
+    requireSession(),
     listProjects(),
     stuckEmailCount(),
     listEmails({

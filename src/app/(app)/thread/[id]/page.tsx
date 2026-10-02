@@ -8,6 +8,7 @@ import { EmailFrame } from "@/components/email-frame";
 import { ThreadToolbar } from "@/components/thread-toolbar";
 import { buttonStyles, Card, ProjectDot, StatusBadge } from "@/components/ui";
 import { formatBytes, formatFull } from "@/lib/format";
+import { requireSession } from "@/lib/auth";
 import { getThread } from "@/lib/queries";
 
 type Params = Promise<{ id: string }>;
@@ -38,7 +39,7 @@ const EVENT_LABEL: Record<string, string> = {
 export default async function ThreadPage({ params }: { params: Params }) {
   const { id } = await params;
   if (!UUID.test(id)) notFound();
-  const thread = await getThread(id);
+  const [, thread] = await Promise.all([requireSession(), getThread(id)]);
   if (!thread) notFound();
 
   const unreadIds = thread.filter((m) => m.email.direction === "inbound" && !m.email.isRead).map((m) => m.email.id);

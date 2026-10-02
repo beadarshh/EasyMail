@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { DeleteProjectButton, IdentityRowControls, NewIdentityForm, NewProjectForm } from "@/components/project-forms";
 import { Card, PageHeader } from "@/components/ui";
+import { requireSession } from "@/lib/auth";
 import { listIdentities, listProjects } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Projects" };
 
 export default async function ProjectsPage() {
-  const [projects, ids] = await Promise.all([listProjects(), listIdentities()]);
+  const [, projects, ids] = await Promise.all([requireSession(), listProjects(), listIdentities()]);
   const options = projects.map((p) => ({ id: p.id, name: p.name }));
 
   return (

@@ -1,29 +1,35 @@
 import { cookies } from "next/headers";
 import { connection } from "next/server";
-import { Sidebar } from "@/components/sidebar";
-import { requireSession } from "@/lib/auth";
+import { Sidebar, type ShellData } from "@/components/sidebar";
+import { currentAdmin } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { unreadCount } from "@/lib/queries";
-import { getUsage } from "@/lib/quota";
+import { getUsageOnce } from "@/lib/quota";
+
+// Sidebar numbers load in the background; the shell and the page below it never wait on them.
+// Access control lives in the pages (each awaits requireSession() alongside its own queries).
+async function loadShell(): Promise<ShellData> {
+  const e = env();
+  const [admin, unread, usage] = await Promise.all([currentAdmin(), unreadCount(), getUsageOnce()]);
+  return {
+    username: admin?.username ?? "",
+    unread,
+    quota: {
+      usedToday: usage.sentToday + usage.receivedToday,
+      dailyCap: e.DAILY_SEND_CAP,
+      warnAt: e.DAILY_WARN_AT,
+      monthUsed: usage.monthUsed,
+      monthlyCap: e.MONTHLY_CAP,
+    },
+  };
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  // Per-request page: never prerender, and fetch auth + data in one parallel round.
+  // Per-request page: never prerender.
   await connection();
-  const [admin, unread, usage, jar] = await Promise.all([requireSession(), unreadCount(), getUsage(), cookies()]);
-  const e = env();
+  const jar = await cookies();
   return (
-    <Sidebar
-      username={admin.username}
-      unread={unread}
-      defaultCollapsed={jar.get("sidebar")?.value === "collapsed"}
-      quota={{
-        usedToday: usage.sentToday + usage.receivedToday,
-        dailyCap: e.DAILY_SEND_CAP,
-        warnAt: e.DAILY_WARN_AT,
-        monthUsed: usage.monthUsed,
-        monthlyCap: e.MONTHLY_CAP,
-      }}
-    >
+    <Sidebar shell={loadShell()} defaultCollapsed={jar.get("sidebar")?.value === "collapsed"}>
       {children}
     </Sidebar>
   );
