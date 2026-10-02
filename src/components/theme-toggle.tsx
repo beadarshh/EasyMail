@@ -31,8 +31,25 @@ const OPTIONS: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: "system", label: "System", icon: Monitor },
 ];
 
-export function ThemeToggle({ className }: { className?: string }) {
+/** `compact`: a single button that cycles light → dark → system (for the collapsed sidebar). */
+export function ThemeToggle({ className, compact }: { className?: string; compact?: boolean }) {
   const theme = useSyncExternalStore(subscribe, getTheme, () => "system" as Theme);
+  if (compact) {
+    const i = OPTIONS.findIndex((o) => o.value === theme);
+    const { label, icon: Icon } = OPTIONS[i];
+    const next = OPTIONS[(i + 1) % OPTIONS.length];
+    return (
+      <button
+        type="button"
+        title={`Theme: ${label} (switch to ${next.label})`}
+        onClick={() => setTheme(next.value)}
+        className={cn("grid h-8 place-items-center rounded-lg border border-border bg-surface text-muted transition-colors hover:text-fg", className)}
+      >
+        <Icon className="size-3.5" />
+        <span className="sr-only">Theme: {label}</span>
+      </button>
+    );
+  }
   return (
     <div role="radiogroup" aria-label="Theme" className={cn("inline-flex rounded-lg border border-border bg-surface p-0.5", className)}>
       {OPTIONS.map(({ value, label, icon: Icon }) => (

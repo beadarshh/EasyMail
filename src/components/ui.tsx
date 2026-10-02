@@ -11,8 +11,8 @@ const buttonBase =
   "inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
 export const buttonStyles = {
-  primary: cn(buttonBase, "specular specular-solid bg-accent text-accent-fg hover:opacity-90 h-9 px-4"),
-  secondary: cn(buttonBase, "specular border border-border bg-surface hover:bg-surface-2 h-9 px-3"),
+  primary: cn(buttonBase, "bg-accent text-accent-fg hover:opacity-90 h-9 px-4"),
+  secondary: cn(buttonBase, "border border-border bg-surface hover:bg-surface-2 h-9 px-3"),
   ghost: cn(buttonBase, "hover:bg-surface-2 h-8 px-2 text-muted hover:text-fg"),
   danger: cn(buttonBase, "border border-border text-danger hover:bg-danger/10 h-9 px-3"),
 };

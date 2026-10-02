@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
-import { SpecularLight } from "@/components/specular-light";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -31,7 +30,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-full font-sans">
         {children}
-        <SpecularLight />
       </body>
     </html>
   );
