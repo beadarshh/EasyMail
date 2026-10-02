@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4.5mb",
     },
   },
+  async redirects() {
+    // Analytics was merged into the dashboard.
+    return [{ source: "/analytics", destination: "/", permanent: true }];
+  },
   async headers() {
     return [
       {

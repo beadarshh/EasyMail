@@ -37,19 +37,19 @@ function Check({ ok, label, hint }: { ok: boolean; label: string; hint?: React.R
 }
 
 export default async function SettingsPage() {
-  const me = await requireSession();
   const e = env();
-  const h = await headers();
-  const adminList = await db()
-    .select({ id: admins.id, username: admins.username, lastLoginAt: admins.lastLoginAt })
-    .from(admins)
-    .orderBy(asc(admins.createdAt));
-  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
-  const [{ lastAt: lastHook, fresh: hookFresh }, usage, hook] = await Promise.all([
+  const [me, h, adminList, { lastAt: lastHook, fresh: hookFresh }, usage, hook] = await Promise.all([
+    requireSession(),
+    headers(),
+    db()
+      .select({ id: admins.id, username: admins.username, lastLoginAt: admins.lastLoginAt })
+      .from(admins)
+      .orderBy(asc(admins.createdAt)),
     webhookHealth(),
     getSetting<UsageSnapshot>("resend_usage"),
     getWebhookConfig(),
   ]);
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
   const hookReady = !!hook || !!e.RESEND_WEBHOOK_SECRET;
 
   return (

@@ -82,63 +82,15 @@ body {
   color: var(--fg);
 }
 
-/*
- * Specular buttons: a thin highlight that runs along the rounded edge on the side
- * facing the pointer (and the opposite side), fading in as the pointer gets close.
- * <SpecularLight /> sets --sb-angle / --sb-bright / --sb-x / --sb-y; pure CSS otherwise.
- */
-.specular {
-  --sb-line: var(--fg);
-  --sb-sheen: color-mix(in srgb, var(--fg) 7%, transparent);
-  position: relative;
-  isolation: isolate;
+/* Content that swaps in when the sidebar collapses/expands. */
+@keyframes fade-in {
+  from { opacity: 0; }
 }
-.specular-solid {
-  /* Filled (primary) buttons: the light reads in the button's own text color. */
-  --sb-line: color-mix(in srgb, var(--accent-fg) 85%, var(--accent));
-  --sb-sheen: color-mix(in srgb, var(--accent-fg) 14%, transparent);
-}
-.specular::before,
-.specular::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  opacity: var(--sb-bright, 0);
-  transition: opacity 180ms ease-out;
-}
-/* The specular streak on the rim */
-.specular::after {
-  padding: 1px;
-  background: conic-gradient(
-    from calc(var(--sb-angle, 135deg) - 28deg),
-    transparent 0deg,
-    var(--sb-line) 28deg,
-    transparent 56deg,
-    transparent 180deg,
-    color-mix(in srgb, var(--sb-line) 60%, transparent) 208deg,
-    transparent 236deg
-  );
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-  z-index: 1;
-}
-/* A soft sheen on the face, under the cursor */
-.specular::before {
-  background: radial-gradient(120px circle at var(--sb-x, 50%) var(--sb-y, 50%), var(--sb-sheen), transparent 70%);
-  z-index: -1;
-}
-.specular:disabled::before,
-.specular:disabled::after {
-  opacity: 0;
+.fade-in {
+  animation: fade-in 200ms ease-out 80ms backwards;
 }
 @media (prefers-reduced-motion: reduce) {
-  .specular::before,
-  .specular::after {
-    transition: none;
-  }
+  .fade-in { animation: none; }
 }
 
 /* Tiptap editor */
