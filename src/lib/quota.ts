@@ -1,5 +1,6 @@
 import "server-only";
 import { gte, sql } from "drizzle-orm";
+import { cache } from "react";
 import { db, quotaUsage } from "@/db";
 import { env } from "./env";
 import { checkQuota, utcDay, utcMonthStart, type QuotaCheck } from "./mail-utils";
@@ -21,6 +22,9 @@ export async function getUsage() {
     monthUsed: monthSent + monthReceived,
   };
 }
+
+/** Deduped within one render (layout + page both need it). Server actions must use getUsage for fresh numbers. */
+export const getUsageOnce = cache(getUsage);
 
 export async function canSend(count = 1): Promise<QuotaCheck & { dailyCap: number; monthlyCap: number }> {
   const u = await getUsage();

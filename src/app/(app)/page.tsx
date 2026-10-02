@@ -4,10 +4,11 @@ import { HourChart, VolumeChart } from "@/components/charts";
 import { EmailList } from "@/components/email-list";
 import { ProjectTable } from "@/components/project-table";
 import { Card, cn, Meter, PageHeader, Stat } from "@/components/ui";
+import { requireSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { DISPLAY_TZ } from "@/lib/format";
 import { analytics, listEmails, listProjects, rate } from "@/lib/queries";
-import { getUsage } from "@/lib/quota";
+import { getUsageOnce } from "@/lib/quota";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -20,12 +21,13 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
   const days = RANGES.includes(Number(params.days)) ? Number(params.days) : DEFAULT_DAYS;
   const projectId = params.project;
   const e = env();
-  const [usage, projects, stats, inbox, sent] = await Promise.all([
-    getUsage(),
+  const [, usage, projects, stats, inbox, sent] = await Promise.all([
+    requireSession(),
+    getUsageOnce(),
     listProjects(),
     analytics({ days, projectId }),
-    listEmails({ direction: "inbound", projectId }),
-    listEmails({ direction: "outbound", projectId }),
+    listEmails({ direction: "inbound", projectId, limit: 5 }),
+    listEmails({ direction: "outbound", projectId, limit: 5 }),
   ]);
   const usedToday = usage.sentToday + usage.receivedToday;
   const t = stats.totals;
@@ -140,7 +142,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
               Inbox →
             </Link>
           </div>
-          {inbox.rows.length ? <EmailList rows={inbox.rows.slice(0, 5)} mode="inbound" /> : <Card className="p-4 text-sm text-muted">Nothing received yet.</Card>}
+          {inbox.rows.length ? <EmailList rows={inbox.rows} mode="inbound" /> : <Card className="p-4 text-sm text-muted">Nothing received yet.</Card>}
         </section>
         <section>
           <div className="mb-2 flex items-center justify-between">
@@ -149,7 +151,7 @@ export default async function Dashboard({ searchParams }: { searchParams: SP }) 
               Sent →
             </Link>
           </div>
-          {sent.rows.length ? <EmailList rows={sent.rows.slice(0, 5)} mode="outbound" /> : <Card className="p-4 text-sm text-muted">Nothing sent yet.</Card>}
+          {sent.rows.length ? <EmailList rows={sent.rows} mode="outbound" /> : <Card className="p-4 text-sm text-muted">Nothing sent yet.</Card>}
         </section>
       </div>
 

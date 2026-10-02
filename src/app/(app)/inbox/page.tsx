@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { EmailList } from "@/components/email-list";
 import { ListFilters, Pager } from "@/components/list-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
+import { requireSession } from "@/lib/auth";
 import { listEmails, listProjects } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Inbox" };
@@ -10,7 +11,8 @@ type SP = Promise<Record<string, string | undefined>>;
 
 export default async function InboxPage({ searchParams }: { searchParams: SP }) {
   const params = await searchParams;
-  const [projects, { rows, hasMore, page }] = await Promise.all([
+  const [, projects, { rows, hasMore, page }] = await Promise.all([
+    requireSession(),
     listProjects(),
     listEmails({
       direction: "inbound",

@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, emails, type Email } from "@/db";
 import { ComposeForm } from "@/components/compose-form";
 import { PageHeader } from "@/components/ui";
+import { requireSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { forwardSubject, replySubject } from "@/lib/mail-utils";
 import { formatFull } from "@/lib/format";
@@ -26,7 +27,7 @@ function quoted(m: Email) {
 
 export default async function ComposePage({ searchParams }: { searchParams: SP }) {
   const params = await searchParams;
-  const [ids, quota] = await Promise.all([listIdentities(), canSend(1)]);
+  const [, ids, quota] = await Promise.all([requireSession(), listIdentities(), canSend(1)]);
   const senders = ids.filter((i) => i.identity.canSend);
 
   const defaults: Parameters<typeof ComposeForm>[0]["defaults"] = { to: params.to };

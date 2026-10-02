@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Suspense, use, useState } from "react";
 import { ChevronLeft, FolderKanban, Inbox, LayoutDashboard, LogOut, Menu, PenSquare, Send, Settings, X } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { Logo } from "./logo";
@@ -20,15 +20,79 @@ const NAV = [
 // One curve for the rail, the labels and the page padding so they move as one.
 const EASE = "duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none";
 
+type Quota = { usedToday: number; dailyCap: number; warnAt: number; monthUsed: number; monthlyCap: number };
+export type ShellData = { username: string; unread: number; quota: Quota };
+
 type Props = {
-  username: string;
-  unread: number;
-  quota: { usedToday: number; dailyCap: number; warnAt: number; monthUsed: number; monthlyCap: number };
+  /** Streamed from the server so the sidebar paints before the database answers. */
+  shell: Promise<ShellData>;
   defaultCollapsed: boolean;
   children: React.ReactNode;
 };
 
-export function Sidebar({ username, unread, quota, defaultCollapsed, children }: Props) {
+function UnreadBadge({ shell, collapsed, labelClass, ease }: { shell: Promise<ShellData>; collapsed: boolean; labelClass: string; ease: string }) {
+  const { unread } = use(shell);
+  if (unread <= 0) return null;
+  return (
+    <>
+      <span className={cn("rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg tabular-nums", labelClass)}>{unread}</span>
+      <span
+        className={cn("absolute left-[1.55rem] top-1.5 size-2 rounded-full bg-accent ring-2 ring-surface transition-opacity", ease, collapsed ? "opacity-100" : "opacity-0")}
+        aria-hidden
+      />
+    </>
+  );
+}
+
+function QuotaPanel({ shell, collapsed }: { shell: Promise<ShellData>; collapsed: boolean }) {
+  const { quota } = use(shell);
+  return collapsed ? (
+    <div
+      className="fade-in space-y-1.5 rounded-lg border border-border px-1.5 py-2 text-center"
+      title={`Today: ${quota.usedToday}/${quota.dailyCap} · This month: ${quota.monthUsed}/${quota.monthlyCap}`}
+    >
+      <Meter value={quota.usedToday} max={quota.dailyCap} warnAt={quota.warnAt} />
+      <Meter value={quota.monthUsed} max={quota.monthlyCap} warnAt={quota.monthlyCap * 0.9} />
+    </div>
+  ) : (
+    <div className="fade-in min-w-48 space-y-3 rounded-lg border border-border p-3 text-xs">
+      <div>
+        <div className="mb-1 flex justify-between text-muted">
+          <span>Today</span>
+          <span className="tabular-nums">
+            {quota.usedToday}/{quota.dailyCap}
+          </span>
+        </div>
+        <Meter value={quota.usedToday} max={quota.dailyCap} warnAt={quota.warnAt} />
+      </div>
+      <div>
+        <div className="mb-1 flex justify-between text-muted">
+          <span>This month</span>
+          <span className="tabular-nums">
+            {quota.monthUsed}/{quota.monthlyCap}
+          </span>
+        </div>
+        <Meter value={quota.monthUsed} max={quota.monthlyCap} warnAt={quota.monthlyCap * 0.9} />
+      </div>
+      <p className="text-[11px] leading-snug text-muted">Sent + received both count. Resets 00:00 UTC.</p>
+    </div>
+  );
+}
+
+function QuotaPlaceholder({ collapsed }: { collapsed: boolean }) {
+  return <div className={cn("animate-pulse rounded-lg border border-border bg-surface-2", collapsed ? "h-14" : "h-40 min-w-48")} aria-hidden />;
+}
+
+function Username({ shell }: { shell: Promise<ShellData> }) {
+  const { username } = use(shell);
+  return (
+    <span className="fade-in min-w-0 flex-1 truncate whitespace-nowrap text-xs text-muted" title={`Signed in as ${username}`}>
+      {username}
+    </span>
+  );
+}
+
+export function Sidebar({ shell, defaultCollapsed, children }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -60,13 +124,12 @@ export function Sidebar({ username, unread, quota, defaultCollapsed, children }:
       </Link>
       {NAV.map(({ href, label: text, icon: Icon, badge }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-        const count = badge === "unread" ? unread : 0;
         return (
           <Link
             key={href}
             href={href}
             onClick={() => setOpen(false)}
-            title={c ? (count ? `${text} (${count})` : text) : undefined}
+            title={c ? text : undefined}
             className={cn(
               "relative flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm transition-colors",
               active ? "bg-surface-2 font-medium text-fg" : "text-muted hover:bg-surface-2 hover:text-fg",
@@ -74,59 +137,28 @@ export function Sidebar({ username, unread, quota, defaultCollapsed, children }:
           >
             <Icon className="size-4 shrink-0" />
             <span className={cn("flex-1", label(c))}>{text}</span>
-            {count > 0 && (
-              <span className={cn("rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg tabular-nums", label(c))}>{count}</span>
-            )}
-            {count > 0 && (
-              <span
-                className={cn("absolute left-[1.55rem] top-1.5 size-2 rounded-full bg-accent ring-2 ring-surface transition-opacity", EASE, c ? "opacity-100" : "opacity-0")}
-                aria-hidden
-              />
+            {badge === "unread" && (
+              <Suspense fallback={null}>
+                <UnreadBadge shell={shell} collapsed={c} labelClass={label(c)} ease={EASE} />
+              </Suspense>
             )}
           </Link>
         );
       })}
 
-      {c ? (
-        <div
-          key="quota-compact"
-          className="fade-in mt-auto space-y-1.5 rounded-lg border border-border px-1.5 py-2 text-center"
-          title={`Today: ${quota.usedToday}/${quota.dailyCap} · This month: ${quota.monthUsed}/${quota.monthlyCap}`}
-        >
-          <Meter value={quota.usedToday} max={quota.dailyCap} warnAt={quota.warnAt} />
-          <Meter value={quota.monthUsed} max={quota.monthlyCap} warnAt={quota.monthlyCap * 0.9} />
-        </div>
-      ) : (
-        <div key="quota" className="fade-in mt-auto min-w-48 space-y-3 rounded-lg border border-border p-3 text-xs">
-          <div>
-            <div className="mb-1 flex justify-between text-muted">
-              <span>Today</span>
-              <span className="tabular-nums">
-                {quota.usedToday}/{quota.dailyCap}
-              </span>
-            </div>
-            <Meter value={quota.usedToday} max={quota.dailyCap} warnAt={quota.warnAt} />
-          </div>
-          <div>
-            <div className="mb-1 flex justify-between text-muted">
-              <span>This month</span>
-              <span className="tabular-nums">
-                {quota.monthUsed}/{quota.monthlyCap}
-              </span>
-            </div>
-            <Meter value={quota.monthUsed} max={quota.monthlyCap} warnAt={quota.monthlyCap * 0.9} />
-          </div>
-          <p className="text-[11px] leading-snug text-muted">Sent + received both count. Resets 00:00 UTC.</p>
-        </div>
-      )}
+      <div className="mt-auto">
+        <Suspense fallback={<QuotaPlaceholder collapsed={c} />}>
+          <QuotaPanel shell={shell} collapsed={c} />
+        </Suspense>
+      </div>
       {c ? <ThemeToggle key="theme-compact" compact className="fade-in mt-2 w-full" /> : <ThemeToggle key="theme" className="fade-in mt-2 w-full min-w-48" />}
       <form action={logout} className={cn("flex items-center", c ? "justify-center" : "gap-2 pl-3")}>
         {!c && (
-          <span className="fade-in min-w-0 flex-1 truncate whitespace-nowrap text-xs text-muted" title={`Signed in as ${username}`}>
-            {username}
-          </span>
+          <Suspense fallback={<span className="min-w-0 flex-1" />}>
+            <Username shell={shell} />
+          </Suspense>
         )}
-        <button className={cn(buttonStyles.ghost, "shrink-0", c && "w-full")} aria-label="Sign out" title={c ? `Sign out (${username})` : "Sign out"}>
+        <button className={cn(buttonStyles.ghost, "shrink-0", c && "w-full")} aria-label="Sign out" title="Sign out">
           <LogOut className="size-4" />
         </button>
       </form>
