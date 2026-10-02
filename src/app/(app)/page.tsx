@@ -59,7 +59,7 @@ export default async function Dashboard() {
         <VolumeChart data={stats.series} />
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 2xl:grid-cols-2">
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-medium">Latest received</h2>

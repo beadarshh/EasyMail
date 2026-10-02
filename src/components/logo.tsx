@@ -1,10 +1,10 @@
-export function Logo() {
+/** The EasyMail mark: a geometric "M", monochrome, no background. Inherits text color. */
+export function Logo({ size = 28, className }: { size?: number; className?: string }) {
   return (
-    <span className="grid size-8 place-items-center rounded-lg bg-accent text-accent-fg">
-      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="5" width="18" height="14" rx="2" />
-        <path d="m3 7 9 6 9-6" />
-      </svg>
-    </span>
+    <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" className={`shrink-0 text-fg ${className ?? ""}`}>
+      <path d="M8 8 32 32 8 56Z" fill="currentColor" />
+      <path d="M20 44 56 8V32L32 56Z" fill="currentColor" fillOpacity="0.45" />
+      <path d="M44 44 56 32V56Z" fill="currentColor" />
+    </svg>
   );
 }

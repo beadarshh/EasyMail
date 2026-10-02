@@ -7,7 +7,9 @@ import { admins, attachments, db, emails, identities, projects } from "@/db";
 import { requireSession, startSession } from "@/lib/auth";
 import { hashPassword, passwordProblem, USERNAME_RE, verifyPassword } from "@/lib/password";
 import { setSetting } from "@/lib/kv";
-import { slugify } from "@/lib/mail-utils";
+import { normalizeMessageId, slugify } from "@/lib/mail-utils";
+import { STUCK_STATUSES as STUCK } from "@/lib/queries";
+import { nextStatus } from "@/lib/status";
 import { resend, throttled } from "@/lib/resend";
 import { removeAttachments } from "@/lib/storage";
 import { connectWebhook, disconnectWebhook, recentDeliveries, replayDelivery, rotateWebhookSecret } from "@/lib/webhook-config";
@@ -233,4 +235,49 @@ export async function replayDeliveryAction(eventId: string) {
   } catch (err) {
     return { error: (err as Error).message };
   }
+}
+
+// ─── Status backfill ──────────────────────────────────────────────────────
+// For mail sent before the webhook existed (or whose events were missed):
+// ask Resend for each email's last event. 1 API call per email, on click only.
+
+export async function refreshStuckStatuses() {
+  await requireSession();
+  const rows = await db()
+    .select({ id: emails.id, resendId: emails.resendId, status: emails.status, sentAt: emails.sentAt })
+    .from(emails)
+    .where(
+      and(
+        eq(emails.direction, "outbound"),
+        inArray(emails.status, STUCK),
+        sql`${emails.resendId} is not null`,
+        sql`${emails.sentAt} < now() - interval '5 minutes'`,
+      ),
+    )
+    .limit(25);
+
+  let updated = 0;
+  for (const row of rows) {
+    const { data, error } = await throttled(() => resend().emails.get(row.resendId!));
+    if (error || !data) continue;
+    const last = data.last_event === "canceled" ? "failed" : data.last_event;
+    const status = nextStatus(row.status, last);
+    if (status === row.status) continue;
+    const reached = (s: string) => ["delivered", "opened", "clicked"].includes(s);
+    await db()
+      .update(emails)
+      .set({
+        status,
+        messageId: sql`coalesce(${emails.messageId}, ${normalizeMessageId(data.message_id)})`,
+        deliveredAt: reached(status) ? sql`coalesce(${emails.deliveredAt}, ${row.sentAt.toISOString()}::timestamptz)` : undefined,
+        firstOpenedAt: ["opened", "clicked"].includes(status) ? sql`coalesce(${emails.firstOpenedAt}, ${row.sentAt.toISOString()}::timestamptz)` : undefined,
+        opens: ["opened", "clicked"].includes(status) ? sql`greatest(${emails.opens}, 1)` : undefined,
+        clicks: status === "clicked" ? sql`greatest(${emails.clicks}, 1)` : undefined,
+        bouncedAt: status === "bounced" ? new Date() : undefined,
+      })
+      .where(eq(emails.id, row.id));
+    updated++;
+  }
+  revalidatePath("/", "layout");
+  return { checked: rows.length, updated };
 }

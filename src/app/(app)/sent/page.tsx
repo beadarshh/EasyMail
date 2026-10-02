@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { EmailList } from "@/components/email-list";
 import { ListFilters, Pager } from "@/components/list-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { listEmails, listProjects } from "@/lib/queries";
+import { RefreshStatusBanner } from "@/components/refresh-status-button";
+import { listEmails, listProjects, stuckEmailCount } from "@/lib/queries";
 
 export const metadata: Metadata = { title: "Sent" };
 
@@ -10,8 +11,9 @@ type SP = Promise<Record<string, string | undefined>>;
 
 export default async function SentPage({ searchParams }: { searchParams: SP }) {
   const params = await searchParams;
-  const [projects, { rows, hasMore, page }] = await Promise.all([
+  const [projects, stuck, { rows, hasMore, page }] = await Promise.all([
     listProjects(),
+    stuckEmailCount(),
     listEmails({
       direction: "outbound",
       q: params.q,
@@ -26,6 +28,7 @@ export default async function SentPage({ searchParams }: { searchParams: SP }) {
   return (
     <>
       <PageHeader title="Sent" subtitle="Everything sent from EasyMail, plus mail your apps send through the same Resend account." />
+      <RefreshStatusBanner count={stuck} />
       <ListFilters
         base="/sent"
         params={params}

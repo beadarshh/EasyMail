@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-
 /* Theme: html[data-theme] is set from the "theme" cookie; absent = follow the OS. */
 @custom-variant dark {
   &:where([data-theme="dark"], [data-theme="dark"] *) {
@@ -13,53 +12,54 @@
   }
 }
 
+/* Monochrome palette. Color is reserved for meaning (status, warnings, project dots). */
 :root {
-  --bg: #f7f7f8;
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f1f1f3;
+  --surface-2: #f4f4f5;
   --border: #e4e4e7;
-  --fg: #18181b;
+  --fg: #0a0a0a;
   --muted: #71717a;
-  --accent: #4f46e5;
+  --accent: #0a0a0a;
   --accent-fg: #ffffff;
   --danger: #dc2626;
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --grid: #ececee;
+  --series-1: #0a0a0a;
+  --series-2: #a1a1aa;
+  --grid: #ededef;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b0b0d;
-    --surface: #141417;
-    --surface-2: #1c1c21;
-    --border: #2a2a31;
-    --fg: #ececf1;
-    --muted: #9b9ba6;
-    --accent: #818cf8;
-    --accent-fg: #0b0b0d;
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface-2: #1a1a1a;
+    --border: #262626;
+    --fg: #fafafa;
+    --muted: #a1a1aa;
+    --accent: #fafafa;
+    --accent-fg: #0a0a0a;
     --danger: #f87171;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --grid: #232329;
+    --series-1: #fafafa;
+    --series-2: #71717a;
+    --grid: #1f1f1f;
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #0b0b0d;
-  --surface: #141417;
-  --surface-2: #1c1c21;
-  --border: #2a2a31;
-  --fg: #ececf1;
-  --muted: #9b9ba6;
-  --accent: #818cf8;
-  --accent-fg: #0b0b0d;
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --surface-2: #1a1a1a;
+  --border: #262626;
+  --fg: #fafafa;
+  --muted: #a1a1aa;
+  --accent: #fafafa;
+  --accent-fg: #0a0a0a;
   --danger: #f87171;
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --grid: #232329;
+  --series-1: #fafafa;
+  --series-2: #71717a;
+  --grid: #1f1f1f;
   color-scheme: dark;
 }
 
@@ -82,6 +82,65 @@ body {
   color: var(--fg);
 }
 
+/*
+ * Specular buttons: a thin highlight that runs along the rounded edge on the side
+ * facing the pointer (and the opposite side), fading in as the pointer gets close.
+ * <SpecularLight /> sets --sb-angle / --sb-bright / --sb-x / --sb-y; pure CSS otherwise.
+ */
+.specular {
+  --sb-line: var(--fg);
+  --sb-sheen: color-mix(in srgb, var(--fg) 7%, transparent);
+  position: relative;
+  isolation: isolate;
+}
+.specular-solid {
+  /* Filled (primary) buttons: the light reads in the button's own text color. */
+  --sb-line: color-mix(in srgb, var(--accent-fg) 85%, var(--accent));
+  --sb-sheen: color-mix(in srgb, var(--accent-fg) 14%, transparent);
+}
+.specular::before,
+.specular::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: var(--sb-bright, 0);
+  transition: opacity 180ms ease-out;
+}
+/* The specular streak on the rim */
+.specular::after {
+  padding: 1px;
+  background: conic-gradient(
+    from calc(var(--sb-angle, 135deg) - 28deg),
+    transparent 0deg,
+    var(--sb-line) 28deg,
+    transparent 56deg,
+    transparent 180deg,
+    color-mix(in srgb, var(--sb-line) 60%, transparent) 208deg,
+    transparent 236deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  z-index: 1;
+}
+/* A soft sheen on the face, under the cursor */
+.specular::before {
+  background: radial-gradient(120px circle at var(--sb-x, 50%) var(--sb-y, 50%), var(--sb-sheen), transparent 70%);
+  z-index: -1;
+}
+.specular:disabled::before,
+.specular:disabled::after {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .specular::before,
+  .specular::after {
+    transition: none;
+  }
+}
+
 /* Tiptap editor */
 .tiptap {
   min-height: 220px;
@@ -91,7 +150,7 @@ body {
 .tiptap p { margin: 0.25rem 0; }
 .tiptap ul { list-style: disc; padding-left: 1.5rem; }
 .tiptap ol { list-style: decimal; padding-left: 1.5rem; }
-.tiptap a { color: var(--accent); text-decoration: underline; }
+.tiptap a { text-decoration: underline; }
 .tiptap blockquote { border-left: 3px solid var(--border); padding-left: 0.75rem; color: var(--muted); }
 .tiptap h2 { font-size: 1.25rem; font-weight: 600; margin: 0.5rem 0; }
 .tiptap code { background: var(--surface-2); padding: 0 0.25rem; border-radius: 4px; }

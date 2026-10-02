@@ -206,3 +206,21 @@ export async function analytics(opts: { days: number; projectId?: string }) {
 export function rate(n: number, d: number) {
   return d ? `${Math.round((n / d) * 1000) / 10}%` : "—";
 }
+
+/** Outbound mail that never got a delivery event (e.g. sent before the webhook existed). */
+export const STUCK_STATUSES = ["queued", "sent", "scheduled"];
+
+export async function stuckEmailCount() {
+  const [r] = await db()
+    .select({ n: sql<number>`count(*)::int` })
+    .from(emails)
+    .where(
+      and(
+        eq(emails.direction, "outbound"),
+        inArray(emails.status, STUCK_STATUSES),
+        sql`${emails.resendId} is not null`,
+        sql`${emails.sentAt} < now() - interval '5 minutes'`,
+      ),
+    );
+  return r?.n ?? 0;
+}

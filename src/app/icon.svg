@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    path { fill: #0a0a0a; }
+    @media (prefers-color-scheme: dark) { path { fill: #fafafa; } }
+  </style>
+  <path d="M8 8 32 32 8 56Z"/>
+  <path d="M20 44 56 8V32L32 56Z" fill-opacity="0.45"/>
+  <path d="M44 44 56 32V56Z"/>
+</svg>

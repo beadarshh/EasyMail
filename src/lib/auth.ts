@@ -1,6 +1,7 @@
 import "server-only";
 import { count, eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { admins, db, type Admin } from "@/db";
 import { env } from "./env";
@@ -29,14 +30,14 @@ export async function endSession() {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-/** Valid token AND the admin still exists with the same session version. */
-export async function currentAdmin(): Promise<Admin | null> {
+/** Valid token AND the admin still exists with the same session version. Cached per request. */
+export const currentAdmin = cache(async (): Promise<Admin | null> => {
   const claims = await verifySession((await cookies()).get(SESSION_COOKIE)?.value, env().SESSION_SECRET);
   if (!claims || !/^[0-9a-f-]{36}$/i.test(claims.sub)) return null;
   const [admin] = await db().select().from(admins).where(eq(admins.id, claims.sub));
   if (!admin || admin.sessionVersion !== claims.ver) return null;
   return admin;
-}
+});
 
 /** Call at the top of every protected page / server action. */
 export async function requireSession(): Promise<Admin> {

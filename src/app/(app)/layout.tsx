@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { Sidebar } from "@/components/sidebar";
 import { requireSession } from "@/lib/auth";
 import { env } from "@/lib/env";
@@ -5,8 +6,9 @@ import { unreadCount } from "@/lib/queries";
 import { getUsage } from "@/lib/quota";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const admin = await requireSession();
-  const [unread, usage] = await Promise.all([unreadCount(), getUsage()]);
+  // Per-request page: never prerender, and fetch auth + data in one parallel round.
+  await connection();
+  const [admin, unread, usage] = await Promise.all([requireSession(), unreadCount(), getUsage()]);
   const e = env();
   return (
     <div className="min-h-screen">
@@ -22,7 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         }}
       />
       <main className="md:pl-60">
-        <div className="mx-auto max-w-6xl px-4 py-6 md:px-8 md:py-8">{children}</div>
+        <div className="px-4 py-6 md:px-8 md:py-8 xl:px-10">{children}</div>
       </main>
     </div>
   );
