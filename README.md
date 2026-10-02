@@ -58,6 +58,22 @@ npm run dev
 ```
 Open http://localhost:3000. On first run you are sent to **/setup** to create your admin username and password. The setup page only works while no admin exists. Do this locally before deploying, so the public URL is never left unclaimed. You can add more admins and change passwords later in **Settings → Admins**.
 
+#### Optional settings
+Only add these if you want to change the default:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DAILY_SEND_CAP` | `95` | Blocks sending at this many emails per day (sent + received). Resend's free hard limit is 100. |
+| `DAILY_WARN_AT` | `80` | Shows a warning from this daily count |
+| `MONTHLY_CAP` | `3000` | Monthly limit (free tier) |
+| `ARCHIVE_ATTACHMENTS` | `true` | Copy attachments into Supabase Storage |
+| `MAX_ATTACHMENT_MB` | `4` | Max total attachment size on an outgoing email (Vercel limit is 4.5 MB) |
+| `ARCHIVE_MAX_MB` | `10` | Largest inbound attachment to archive |
+| `SUPABASE_BUCKET` | `attachments` | Storage bucket name |
+| `RESEND_WEBHOOK_SECRET` | none | Only for a webhook created by hand. **Connect** in Settings stores the secret for you. |
+| `DATABASE_URL` | none | Use any Postgres instead of building the URL from `SUPABASE_*` |
+| `DATABASE_POOL_MAX` | `3` | DB connections per server instance |
+
 ### 3. Resend domain (sending + receiving)
 If your root domain already receives mail (Gmail, Zoho, …), use a **subdomain** such as `mail.yourdomain.com` so your existing mail is untouched.
 
