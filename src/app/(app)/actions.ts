@@ -4,11 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSession, startSession } from "@/lib/auth";
 import { hashPassword, passwordProblem, USERNAME_RE, verifyPassword } from "@/lib/password";
+import { parseHosts } from "@/lib/api-keys";
 import { slugify } from "@/lib/mail-utils";
 import { resend, throttled } from "@/lib/resend";
 import { connectWebhook, disconnectWebhook, recentDeliveries, replayDelivery, rotateWebhookSecret } from "@/lib/webhook-config";
 import { logActivity } from "@/services/activity.service";
 import * as admins from "@/services/admin.service";
+import * as apiKeys from "@/services/api-key.service";
 import * as mail from "@/services/mail.service";
 import * as projects from "@/services/project.service";
 import { setSetting } from "@/services/settings.service";
@@ -90,6 +92,38 @@ export async function updateIdentityProject(id: string, projectId: string | null
 export async function deleteIdentity(id: string) {
   const me = await requireSession();
   await projects.deleteIdentity(id, me.username);
+  revalidatePath("/projects");
+}
+
+// ─── API keys (website contact forms) ────────────────────────────────────
+
+const apiKeySchema = z.object({
+  name: z.string().trim().min(1).max(60),
+  projectId: z.string().uuid(),
+  identityId: z.string().uuid(),
+  toAddress: z.string().trim().toLowerCase().email(),
+});
+
+/** Returns the raw key once; it can't be shown again. */
+export async function createApiKey(_: unknown, formData: FormData): Promise<{ error?: string; key?: string } | undefined> {
+  const me = await requireSession();
+  const parsed = apiKeySchema.safeParse({
+    name: formData.get("name"),
+    projectId: formData.get("projectId"),
+    identityId: formData.get("identityId"),
+    toAddress: formData.get("toAddress"),
+  });
+  if (!parsed.success) return { error: "Fill in the name, project, From address and recipient" };
+  const allowedOrigins = parseHosts(String(formData.get("origins") ?? ""));
+  if (!allowedOrigins.length) return { error: "Add at least one website domain, e.g. beadarsh.in" };
+  const key = await apiKeys.createApiKey({ ...parsed.data, allowedOrigins }, me.username);
+  revalidatePath("/projects");
+  return { key };
+}
+
+export async function revokeApiKey(id: string) {
+  const me = await requireSession();
+  await apiKeys.revokeApiKey(id, me.username);
   revalidatePath("/projects");
 }
 

@@ -2,7 +2,15 @@
 
 import { useActionState, useEffect, useRef, useTransition } from "react";
 import { Trash2 } from "lucide-react";
-import { createIdentity, createProject, deleteIdentity, deleteProject, updateIdentityProject } from "@/app/(app)/actions";
+import {
+  createApiKey,
+  createIdentity,
+  createProject,
+  deleteIdentity,
+  deleteProject,
+  revokeApiKey,
+  updateIdentityProject,
+} from "@/app/(app)/actions";
 import { buttonStyles, cn, inputStyles } from "./ui";
 
 const PALETTE = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
@@ -104,5 +112,69 @@ export function IdentityRowControls({ id, projectId, projects }: { id: string; p
         <Trash2 className="size-4" />
       </button>
     </div>
+  );
+}
+
+export function NewApiKeyForm({
+  projects,
+  senders,
+}: {
+  projects: { id: string; name: string }[];
+  senders: { id: string; address: string }[];
+}) {
+  const [state, action, pending] = useActionState(createApiKey, undefined);
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (state?.key) ref.current?.reset();
+  }, [state]);
+  return (
+    <form ref={ref} action={action} className="grid gap-2 sm:grid-cols-2">
+      <input name="name" required placeholder="Key name (e.g. Portfolio contact form)" className={inputStyles} />
+      <input name="origins" required placeholder="Allowed domains: beadarsh.in, www.beadarsh.in" className={inputStyles} />
+      <select name="projectId" required className={inputStyles} defaultValue="">
+        <option value="" disabled>
+          Project
+        </option>
+        {projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+      <select name="identityId" required className={inputStyles} defaultValue="">
+        <option value="" disabled>
+          Send from
+        </option>
+        {senders.map((i) => (
+          <option key={i.id} value={i.id}>
+            {i.address}
+          </option>
+        ))}
+      </select>
+      <input name="toAddress" type="email" required placeholder="Deliver messages to (e.g. info@beadarsh.in)" className={inputStyles} />
+      <button disabled={pending} className={cn(buttonStyles.primary, "sm:justify-self-end")}>
+        Generate key
+      </button>
+      {state?.error && <p className="text-sm text-danger sm:col-span-2">{state.error}</p>}
+      {state?.key && (
+        <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm sm:col-span-2">
+          <p className="mb-1 font-medium">Copy this key now. It won&apos;t be shown again.</p>
+          <code className="block break-all select-all">{state.key}</code>
+        </div>
+      )}
+    </form>
+  );
+}
+
+export function RevokeApiKeyButton({ id, name }: { id: string; name: string }) {
+  const [pending, start] = useTransition();
+  return (
+    <button
+      disabled={pending}
+      className={buttonStyles.danger}
+      onClick={() => confirm(`Revoke "${name}"? Websites using it will stop being able to send.`) && start(() => revokeApiKey(id))}
+    >
+      Revoke
+    </button>
   );
 }
