@@ -130,7 +130,7 @@ export function NewApiKeyForm({
   return (
     <form ref={ref} action={action} className="grid gap-2 sm:grid-cols-2">
       <input name="name" required placeholder="Key name (e.g. Portfolio contact form)" className={inputStyles} />
-      <input name="origins" required placeholder="Allowed domains: beadarsh.in, www.beadarsh.in" className={inputStyles} />
+      <input name="origins" required placeholder="Allowed domains: example.com, www.example.com" className={inputStyles} />
       <select name="projectId" required className={inputStyles} defaultValue="">
         <option value="" disabled>
           Project
@@ -151,7 +151,7 @@ export function NewApiKeyForm({
           </option>
         ))}
       </select>
-      <input name="toAddress" type="email" required placeholder="Deliver messages to (e.g. info@beadarsh.in)" className={inputStyles} />
+      <input name="toAddress" type="email" required placeholder="Deliver messages to (e.g. you@example.com)" className={inputStyles} />
       <button disabled={pending} className={cn(buttonStyles.primary, "sm:justify-self-end")}>
         Generate key
       </button>

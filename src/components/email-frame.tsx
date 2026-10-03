@@ -22,6 +22,30 @@ function getIsDark() {
 
 const REMOTE_RE = /(<img[^>]+src\s*=\s*["']?\s*https?:)|(url\(\s*["']?\s*https?:)|(<link[^>]+href\s*=\s*["']?\s*https?:)/i;
 
+const luminance = (rgb: string) => {
+  const m = rgb.match(/[\d.]+/g);
+  if (!m) return null;
+  const [r, g, b] = m.slice(0, 3).map(Number);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+};
+
+/**
+ * Emails often hardcode text colors (e.g. #171717) that vanish on our dark frame, or the reverse.
+ * When the email sets no backgrounds of its own, flip any inline text color that contrasts badly
+ * with the frame. Emails with their own backgrounds are left untouched.
+ */
+function adaptColors(doc: Document, dark: boolean) {
+  if (doc.querySelector("[bgcolor], [style*='background']")) return;
+  const win = doc.defaultView;
+  if (!win) return;
+  doc.querySelectorAll<HTMLElement>("[style*='color'], font[color]").forEach((el) => {
+    const lum = luminance(win.getComputedStyle(el).color);
+    if (lum === null) return;
+    if (dark && lum < 0.45) el.style.setProperty("color", lum < 0.25 ? "#fafafa" : "#a1a1aa", "important");
+    else if (!dark && lum > 0.65) el.style.setProperty("color", "#0a0a0a", "important");
+  });
+}
+
 /**
  * Renders untrusted email HTML in a sandboxed iframe: no scripts (sandbox has no
  * allow-scripts), links open in a new tab, and remote content (tracking pixels)
@@ -49,6 +73,7 @@ export function EmailFrame({ html, text }: { html: string | null; text: string |
     const measure = () => {
       const doc = frame.contentDocument;
       if (!doc?.documentElement) return;
+      adaptColors(doc, dark);
       setHeight(Math.min(Math.max(doc.documentElement.scrollHeight, 80), 6000));
       observer?.disconnect();
       observer = new ResizeObserver(() => setHeight(Math.min(Math.max(doc.documentElement.scrollHeight, 80), 6000)));
@@ -60,7 +85,7 @@ export function EmailFrame({ html, text }: { html: string | null; text: string |
       frame.removeEventListener("load", measure);
       observer?.disconnect();
     };
-  }, [srcDoc]);
+  }, [srcDoc, dark]);
 
   if (!srcDoc) {
     return <pre className="whitespace-pre-wrap break-words px-1 font-sans text-sm leading-relaxed">{text || "(empty message)"}</pre>;

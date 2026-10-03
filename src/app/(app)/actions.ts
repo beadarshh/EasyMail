@@ -115,7 +115,7 @@ export async function createApiKey(_: unknown, formData: FormData): Promise<{ er
   });
   if (!parsed.success) return { error: "Fill in the name, project, From address and recipient" };
   const allowedOrigins = parseHosts(String(formData.get("origins") ?? ""));
-  if (!allowedOrigins.length) return { error: "Add at least one website domain, e.g. beadarsh.in" };
+  if (!allowedOrigins.length) return { error: "Add at least one website domain, e.g. example.com" };
   const key = await apiKeys.createApiKey({ ...parsed.data, allowedOrigins }, me.username);
   revalidatePath("/projects");
   return { key };
