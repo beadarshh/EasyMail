@@ -21,6 +21,8 @@ export type SendInput = {
   html: string;
   text: string;
   replyToEmailId?: string;
+  /** Where replies go (e.g. the visitor who filled in a contact form). */
+  replyTo?: string;
   files: File[];
   /** Admin username, for the activity log. */
   actor?: string;
@@ -69,6 +71,7 @@ export async function sendMail(input: SendInput): Promise<SendResult> {
         to: input.to,
         cc: input.cc.length ? input.cc : undefined,
         bcc: input.bcc.length ? input.bcc : undefined,
+        replyTo: input.replyTo,
         subject,
         html: input.html,
         text: input.text,
@@ -100,6 +103,7 @@ export async function sendMail(input: SendInput): Promise<SendResult> {
       to: input.to,
       cc: input.cc,
       bcc: input.bcc,
+      replyTo: input.replyTo ? [input.replyTo] : [],
       subject,
       text: input.text,
       html: input.html,

@@ -45,6 +45,27 @@ export const identities = pgTable("identities", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Keys that let a website call POST /api/contact. Only the SHA-256 hash is stored; the raw key is
+// shown once at creation. A key is bound to a project, a From address, a recipient and the
+// website domains allowed to use it.
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    keyPrefix: text("key_prefix").notNull(), // first characters, to recognise a key in the list
+    keyHash: text("key_hash").notNull().unique(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
+    identityId: uuid("identity_id").references(() => identities.id, { onDelete: "set null" }),
+    toAddress: text("to_address").notNull(), // where contact-form messages are delivered
+    allowedOrigins: text("allowed_origins").array().notNull().default([]), // hostnames, lowercase
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("api_keys_project_idx").on(t.projectId)],
+);
+
 export const emails = pgTable(
   "emails",
   {
@@ -164,6 +185,7 @@ export const activityLog = pgTable(
 export type Admin = typeof admins.$inferSelect;
 export type ActivityEntry = typeof activityLog.$inferSelect;
 export type Project = typeof projects.$inferSelect;
+export type ApiKey = typeof apiKeys.$inferSelect;
 export type Identity = typeof identities.$inferSelect;
 export type Email = typeof emails.$inferSelect;
 export type EmailEvent = typeof emailEvents.$inferSelect;

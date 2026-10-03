@@ -117,6 +117,19 @@ Anything your projects send through the same Resend account appears under **Sent
 await resend.emails.send({ ..., tags: [{ name: "project", value: "<project-slug>" }] });
 ```
 
+## Contact form API for your websites
+Websites can send you mail through EasyMail without holding a Resend key. In **Projects → Website API keys**, generate a key for a project, choosing the From address, the recipient and the website domains allowed to use it. The key is shown once and only its hash is stored. Run `npm run db:migrate` to create the `api_keys` table first.
+
+```http
+POST https://easymail.beadarsh.in/api/contact
+x-api-key: em_...
+Content-Type: application/json
+
+{ "name": "Ada", "email": "ada@example.com", "message": "Hello", "phone": "optional", "organization": "optional" }
+```
+
+The request's `Origin` must match one of the key's domains (otherwise `403`). The mail is sent from the key's address to its recipient with `Reply-To` set to the visitor, and it is counted against the free-tier guard. Revoke a key at any time from the same page. A `website` field is a honeypot for bots, and each key and visitor IP is limited to 5 messages per 10 minutes.
+
 ## Scripts
 | Script | What it does |
 |---|---|
