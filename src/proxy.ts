@@ -15,5 +15,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Webhooks (signature-verified), cron (bearer secret) and the public contact API (API key) authenticate themselves.
-  matcher: ["/((?!login|setup|api/webhooks|api/cron|api/contact|_next/static|_next/image|favicon.ico|icon.svg|apple-icon|manifest.webmanifest).*)"],
+  matcher: ["/((?!login|setup|api/webhooks|api/cron|api/contact|_next/static|_next/image|favicon.ico|icon.svg|apple-icon|pwa-icon|manifest.webmanifest).*)"],
 };
