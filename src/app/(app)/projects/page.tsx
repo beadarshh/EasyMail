@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import {
   DeleteProjectButton,
   IdentityRowControls,
@@ -17,6 +18,9 @@ export const metadata: Metadata = { title: "Projects" };
 export default async function ProjectsPage() {
   const [, projects, ids, keys] = await Promise.all([requireSession(), listProjects(), listIdentities(), listApiKeys()]);
   const options = projects.map((p) => ({ id: p.id, name: p.name }));
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "your-app.vercel.app";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
 
   return (
     <>
@@ -94,7 +98,7 @@ export default async function ProjectsPage() {
         <div className="mt-4 rounded-lg bg-surface-2 p-3 text-xs text-muted">
           <p className="mb-1 font-medium text-fg">Usage</p>
           <code className="block whitespace-pre-wrap">
-            {`POST https://easymail.beadarsh.in/api/contact
+            {`POST ${proto}://${host}/api/contact
 x-api-key: em_...
 Content-Type: application/json
 
