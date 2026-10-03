@@ -53,11 +53,11 @@ export function buildContactMessage(projectName: string, f: ContactFields) {
   if (f.organization) rows.push(["Organization", f.organization]);
   if (f.phone) rows.push(["Phone", f.phone]);
 
-  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;line-height:1.6;color:#171717">
+  const html = `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;line-height:1.6">
 <h2 style="margin:0 0 4px">New message from ${escapeHtml(projectName)}</h2>
-<p style="margin:0 0 20px;color:#737373;font-size:13px">Sent through the contact form. Reply to this email to answer ${escapeHtml(f.name)}.</p>
+<p style="margin:0 0 20px;opacity:.6;font-size:13px">Sent through the contact form. Reply to this email to answer ${escapeHtml(f.name)}.</p>
 ${rows.map(([k, v]) => `<p style="margin:0 0 8px"><b>${k}:</b> ${escapeHtml(v)}</p>`).join("\n")}
-<div style="margin-top:16px;padding:16px;border:1px solid #e5e5e5;border-radius:10px;white-space:pre-wrap">${escapeHtml(f.message)}</div>
+<div style="margin-top:16px;padding:16px;border:1px solid rgba(128,128,128,.35);border-radius:10px;white-space:pre-wrap">${escapeHtml(f.message)}</div>
 </div>`;
   const text = [`New message from ${projectName}`, "", ...rows.map(([k, v]) => `${k}: ${v}`), "", f.message].join("\n");
   const oneLine = (s: string, max: number) => s.replace(/[\r\n]+/g, " ").trim().slice(0, max);

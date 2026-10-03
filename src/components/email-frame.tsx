@@ -1,7 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ImageOff } from "lucide-react";
+
+// Mirrors globals.css: <html data-theme> wins, otherwise follow the OS.
+const DARK_MQ = "(prefers-color-scheme: dark)";
+function subscribeDark(cb: () => void) {
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  const mq = window.matchMedia(DARK_MQ);
+  mq.addEventListener("change", cb);
+  return () => {
+    mo.disconnect();
+    mq.removeEventListener("change", cb);
+  };
+}
+function getIsDark() {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : window.matchMedia(DARK_MQ).matches;
+}
 
 const REMOTE_RE = /(<img[^>]+src\s*=\s*["']?\s*https?:)|(url\(\s*["']?\s*https?:)|(<link[^>]+href\s*=\s*["']?\s*https?:)/i;
 
@@ -15,13 +32,15 @@ export function EmailFrame({ html, text }: { html: string | null; text: string |
   const [showRemote, setShowRemote] = useState(false);
   const [height, setHeight] = useState(200);
   const hasRemote = useMemo(() => !!html && REMOTE_RE.test(html), [html]);
+  const dark = useSyncExternalStore(subscribeDark, getIsDark, () => false);
 
   const srcDoc = useMemo(() => {
     if (!html) return null;
+    const [bg, fg] = dark ? ["#111111", "#fafafa"] : ["#ffffff", "#0a0a0a"];
     const remote = showRemote ? " https: http:" : "";
     const csp = `default-src 'none'; img-src data: cid:${remote}; style-src 'unsafe-inline'${remote}; font-src data:${remote}; media-src data:${remote}`;
-    return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank"><style>html,body{margin:0;background:#fff;color:#18181b}body{padding:16px;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>${html}</body></html>`;
-  }, [html, showRemote]);
+    return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><base target="_blank"><style>:root{color-scheme:${dark ? "dark" : "light"}}html,body{margin:0;background:${bg};color:${fg}}body{padding:16px;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}a{color:${dark ? "#93c5fd" : "#2563eb"}}img{max-width:100%;height:auto}table{max-width:100%}</style></head><body>${html}</body></html>`;
+  }, [html, showRemote, dark]);
 
   useEffect(() => {
     const frame = ref.current;
@@ -65,7 +84,7 @@ export function EmailFrame({ html, text }: { html: string | null; text: string |
         sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
         srcDoc={srcDoc}
         style={{ height }}
-        className="w-full rounded-lg border border-border bg-white"
+        className="w-full rounded-lg border border-border bg-surface"
       />
     </div>
   );
