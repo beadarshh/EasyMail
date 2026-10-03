@@ -205,7 +205,7 @@ export function Sidebar({ shell, defaultCollapsed, children }: Props) {
           </aside>
         </div>
       )}
-      <main className={cn("transition-[padding-left]", EASE, collapsed ? "md:pl-[68px]" : "md:pl-60")}>
+      <main className={cn("min-w-0 transition-[padding-left]", EASE, collapsed ? "md:pl-[68px]" : "md:pl-60")}>
         <div className="px-4 py-6 md:px-8 md:py-8 xl:px-10">{children}</div>
       </main>
     </div>

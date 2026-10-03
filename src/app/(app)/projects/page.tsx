@@ -29,7 +29,7 @@ export default async function ProjectsPage() {
         subtitle="Group mail by project. Each address belongs to one project, which tags everything it sends or receives."
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <h2 className="mb-3 text-sm font-medium">Projects</h2>
           <NewProjectForm nextColor={projects.length} />

@@ -46,7 +46,7 @@ export function NewIdentityForm({ projects }: { projects: { id: string; name: st
     if (state && "ok" in state) ref.current?.reset();
   }, [state]);
   return (
-    <form ref={ref} action={action} className="grid gap-2 sm:grid-cols-2">
+    <form ref={ref} action={action} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <input name="address" type="email" required placeholder="hello@mail.yourdomain.com" className={inputStyles} />
       <input name="displayName" placeholder="Display name (optional)" className={inputStyles} />
       <select name="projectId" className={inputStyles} defaultValue="">
@@ -128,7 +128,7 @@ export function NewApiKeyForm({
     if (state?.key) ref.current?.reset();
   }, [state]);
   return (
-    <form ref={ref} action={action} className="grid gap-2 sm:grid-cols-2">
+    <form ref={ref} action={action} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <input name="name" required placeholder="Key name (e.g. Portfolio contact form)" className={inputStyles} />
       <input name="origins" required placeholder="Allowed domains: example.com, www.example.com" className={inputStyles} />
       <select name="projectId" required className={inputStyles} defaultValue="">

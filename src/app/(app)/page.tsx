@@ -42,7 +42,7 @@ export default async function Dashboard() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           label="Today (UTC)"
           value={`${usedToday} / ${e.DAILY_SEND_CAP}`}
@@ -76,7 +76,7 @@ export default async function Dashboard() {
         <VolumeChart data={stats.series} />
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-medium">Latest received</h2>

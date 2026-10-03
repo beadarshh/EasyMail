@@ -24,7 +24,7 @@ export function NewAdminForm() {
   const ref = useResetOnOk(state);
   return (
     <form ref={ref} action={action} className="space-y-2">
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input name="username" required placeholder="Username" autoComplete="off" autoCapitalize="none" className={inputStyles} />
         <input name="password" type="password" required minLength={10} placeholder="Password (10+ chars)" autoComplete="new-password" className={inputStyles} />
       </div>
@@ -44,7 +44,7 @@ export function ChangePasswordForm() {
   return (
     <form ref={ref} action={action} className="space-y-2">
       <input name="current" type="password" required placeholder="Current password" autoComplete="current-password" className={inputStyles} />
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input name="next" type="password" required minLength={10} placeholder="New password" autoComplete="new-password" className={inputStyles} />
         <input name="confirm" type="password" required minLength={10} placeholder="Confirm new password" autoComplete="new-password" className={inputStyles} />
       </div>

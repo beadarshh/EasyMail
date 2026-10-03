@@ -52,7 +52,7 @@ export default async function SettingsPage() {
     <>
       <PageHeader title="Settings" subtitle="Webhook, health, limits, admins and data." />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <h2 className="mb-2 text-sm font-medium">Setup checklist</h2>
           <ul className="divide-y divide-border">
@@ -149,7 +149,7 @@ export default async function SettingsPage() {
 
         <Card className="p-4 lg:col-span-2">
           <h2 className="mb-3 text-sm font-medium">Admins</h2>
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
               <ul className="mb-4 divide-y divide-border">
                 {adminList.map((a) => (
