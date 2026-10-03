@@ -1,16 +1,16 @@
 import "server-only";
 import { gte, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { cache } from "react";
-import { db, quotaUsage } from "@/db";
-import { env } from "./env";
-import { checkQuota, utcDay, utcMonthStart, type QuotaCheck } from "./mail-utils";
+import { quotaUsage } from "@/db/schema";
+import { env } from "@/lib/env";
+import { checkQuota, utcDay, utcMonthStart, type QuotaCheck } from "@/lib/mail-utils";
+import { invalidate, TAG } from "./cache";
+import { db, readDb } from "./supabase";
 
 export async function getUsage() {
   const today = utcDay();
-  const rows = await db()
-    .select()
-    .from(quotaUsage)
-    .where(gte(quotaUsage.day, utcMonthStart()));
+  const rows = await readDb(() => db().select().from(quotaUsage).where(gte(quotaUsage.day, utcMonthStart())));
   const t = rows.find((r) => r.day === today);
   const monthSent = rows.reduce((a, r) => a + r.sent, 0);
   const monthReceived = rows.reduce((a, r) => a + r.received, 0);
@@ -23,8 +23,13 @@ export async function getUsage() {
   };
 }
 
-/** Deduped within one render (layout + page both need it). Server actions must use getUsage for fresh numbers. */
-export const getUsageOnce = cache(getUsage);
+const cachedUsage = unstable_cache(getUsage, ["usage"], { tags: [TAG.shell], revalidate: 120 });
+
+/**
+ * For display (sidebar meters, dashboard): served from the data cache and refreshed whenever usage
+ * changes, and deduped within one render. Sending must use getUsage / canSend, which always read fresh.
+ */
+export const getUsageOnce = cache(cachedUsage);
 
 export async function canSend(count = 1): Promise<QuotaCheck & { dailyCap: number; monthlyCap: number }> {
   const u = await getUsage();
@@ -45,7 +50,17 @@ async function bump(column: "sent" | "received", n: number, at: Date) {
       target: quotaUsage.day,
       set: { [column]: sql`${quotaUsage[column]} + ${n}` },
     });
+  invalidate(TAG.shell, TAG.dashboard);
 }
 
 export const recordSent = (n = 1, at = new Date()) => bump("sent", n, at);
 export const recordReceived = (n = 1, at = new Date()) => bump("received", n, at);
+
+/** Overwrites one day's counters with Resend's authoritative numbers (daily cron). */
+export async function setDayUsage(day: string, sent: number, received: number) {
+  await db()
+    .insert(quotaUsage)
+    .values({ day, sent, received })
+    .onConflictDoUpdate({ target: quotaUsage.day, set: { sent, received } });
+  invalidate(TAG.shell, TAG.dashboard);
+}

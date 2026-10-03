@@ -1,4 +1,4 @@
-import { rate } from "@/lib/queries";
+import { rate } from "@/lib/format";
 
 type Row = { projectId: string | null; name: string; color: string | null; sent: number; received: number; delivered: number; opened: number; bounced: number };
 

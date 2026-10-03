@@ -1,6 +1,5 @@
 import type { WebhookEventPayload } from "resend";
-import { handleOutboundEvent } from "@/lib/events";
-import { ingestInbound } from "@/lib/ingest";
+import { handleOutboundEvent, ingestInbound } from "@/services/inbound.service";
 import { resend } from "@/lib/resend";
 import { webhookSecrets } from "@/lib/webhook-config";
 

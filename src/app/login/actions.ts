@@ -1,11 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { admins, db } from "@/db";
-import { adminCount, endSession, startSession } from "@/lib/auth";
+import { currentAdmin, endSession, startSession } from "@/lib/auth";
 import { hashPassword, passwordProblem, USERNAME_RE, verifyPassword } from "@/lib/password";
+import { adminCount, createFirstAdmin, getAdminByUsername, logFailedLogin, logLogout, touchLastLogin } from "@/services/admin.service";
 
 type FormState = { error?: string } | undefined;
 
@@ -16,14 +15,16 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  const [admin] = USERNAME_RE.test(username) ? await db().select().from(admins).where(eq(admins.username, username)) : [];
+  const admin = USERNAME_RE.test(username) ? await getAdminByUsername(username) : null;
   const ok = await verifyPassword(password, admin?.passwordHash ?? (await DUMMY_HASH));
   if (!admin || !ok) {
+    after(() => logFailedLogin(username));
     await new Promise((r) => setTimeout(r, 800)); // slow down guessing
     return { error: "Incorrect username or password" };
   }
 
-  after(() => db().update(admins).set({ lastLoginAt: new Date() }).where(eq(admins.id, admin.id)));
+  // Written after the redirect response is sent, so signing in doesn't wait on the database.
+  after(() => touchLastLogin(admin));
   await startSession(admin);
   redirect("/");
 }
@@ -40,21 +41,17 @@ export async function setupAdmin(_prev: FormState, formData: FormData): Promise<
   if (problem) return { error: problem };
   if (password !== confirm) return { error: "Passwords don't match" };
 
-  const [admin] = await db()
-    .insert(admins)
-    .values({ username, passwordHash: await hashPassword(password), lastLoginAt: new Date() })
-    .returning();
   // If two setups raced, only the first may stay.
-  if ((await adminCount()) > 1) {
-    await db().delete(admins).where(eq(admins.id, admin.id));
-    redirect("/login");
-  }
+  const admin = await createFirstAdmin(username, await hashPassword(password));
+  if (!admin) redirect("/login");
 
   await startSession(admin);
   redirect("/");
 }
 
 export async function logout() {
+  const me = await currentAdmin().catch(() => null);
   await endSession();
+  if (me) after(() => logLogout(me.username));
   redirect("/login");
 }

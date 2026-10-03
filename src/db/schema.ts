@@ -143,7 +143,26 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Every notable thing that happens (mail sent/received, delivery events, logins, admin changes) is
+// written here once, so the dashboard reads one small indexed table instead of re-deriving it.
+export const activityLog = pgTable(
+  "activity_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    type: text("type").notNull(), // e.g. "email.sent", "auth.login"
+    title: text("title").notNull(), // human-readable one-liner
+    actor: text("actor"), // admin username, or null for system / webhook events
+    emailId: uuid("email_id").references(() => emails.id, { onDelete: "set null" }),
+    threadId: uuid("thread_id"),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("activity_log_created_idx").on(t.createdAt)],
+);
+
 export type Admin = typeof admins.$inferSelect;
+export type ActivityEntry = typeof activityLog.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Identity = typeof identities.$inferSelect;
 export type Email = typeof emails.$inferSelect;

@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { eq } from "drizzle-orm";
-import { db, emails, type Email } from "@/db";
+import type { Email } from "@/db/schema";
 import { ComposeForm } from "@/components/compose-form";
 import { PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { forwardSubject, replySubject } from "@/lib/mail-utils";
 import { formatFull } from "@/lib/format";
-import { listIdentities } from "@/lib/queries";
-import { canSend } from "@/lib/quota";
+import { listIdentities } from "@/services/project.service";
+import { canSend } from "@/services/quota.service";
+import { getEmail } from "@/services/mail.service";
 
 export const metadata: Metadata = { title: "Compose" };
 
@@ -35,7 +35,7 @@ export default async function ComposePage({ searchParams }: { searchParams: SP }
   let title = "New message";
 
   if (sourceId && UUID.test(sourceId)) {
-    const [m] = await db().select().from(emails).where(eq(emails.id, sourceId));
+    const m = await getEmail(sourceId);
     if (m) {
       const q = quoted(m);
       // Reply from the address that received the mail (or sent it, for outbound).

@@ -4,7 +4,8 @@ import { ListFilters, Pager } from "@/components/list-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
 import { RefreshStatusBanner } from "@/components/refresh-status-button";
-import { listEmails, listProjects, stuckEmailCount } from "@/lib/queries";
+import { listEmails, stuckEmailCount } from "@/services/mail.service";
+import { listProjects } from "@/services/project.service";
 
 export const metadata: Metadata = { title: "Sent" };
 

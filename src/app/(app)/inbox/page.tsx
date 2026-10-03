@@ -3,7 +3,8 @@ import { EmailList } from "@/components/email-list";
 import { ListFilters, Pager } from "@/components/list-filters";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
-import { listEmails, listProjects } from "@/lib/queries";
+import { listEmails } from "@/services/mail.service";
+import { listProjects } from "@/services/project.service";
 
 export const metadata: Metadata = { title: "Inbox" };
 

@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { CheckCircle2, CircleAlert } from "lucide-react";
-import { asc } from "drizzle-orm";
-import { admins, db } from "@/db";
 import { ChangePasswordForm, DeleteAdminButton, NewAdminForm } from "@/components/admin-forms";
 import { SyncUsageButton } from "@/components/sync-usage-button";
 import { WebhookManager } from "@/components/webhook-manager";
 import { buttonStyles, Card, Meter, PageHeader } from "@/components/ui";
 import { env, storageEnabled } from "@/lib/env";
 import { DISPLAY_TZ, formatFull } from "@/lib/format";
-import { getSetting } from "@/lib/kv";
+import { getSetting } from "@/services/settings.service";
 import { requireSession } from "@/lib/auth";
-import { webhookHealth } from "@/lib/queries";
+import { listAdmins } from "@/services/admin.service";
+import { webhookHealth } from "@/services/mail.service";
 import { getWebhookConfig } from "@/lib/webhook-config";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -41,10 +40,7 @@ export default async function SettingsPage() {
   const [me, h, adminList, { lastAt: lastHook, fresh: hookFresh }, usage, hook] = await Promise.all([
     requireSession(),
     headers(),
-    db()
-      .select({ id: admins.id, username: admins.username, lastLoginAt: admins.lastLoginAt })
-      .from(admins)
-      .orderBy(asc(admins.createdAt)),
+    listAdmins(),
     webhookHealth(),
     getSetting<UsageSnapshot>("resend_usage"),
     getWebhookConfig(),
@@ -69,7 +65,7 @@ export default async function SettingsPage() {
             <Check
               ok={storageEnabled()}
               label="Attachment archive (Supabase Storage)"
-              hint={storageEnabled() ? `Bucket "${e.SUPABASE_BUCKET}" · archiving ${e.ARCHIVE_ATTACHMENTS ? "on" : "off"}` : "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY"}
+              hint={storageEnabled() ? `Bucket "${e.SUPABASE_BUCKET}" · archiving ${e.ARCHIVE_ATTACHMENTS ? "on" : "off"}` : "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_ANON_KEY)"}
             />
             <Check ok={!!e.CRON_SECRET} label="Daily cron secured" hint="Set CRON_SECRET; Vercel sends it to /api/cron/daily." />
           </ul>
