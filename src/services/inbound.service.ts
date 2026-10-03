@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import type { EmailReceivedEvent, WebhookEventPayload } from "resend";
 import { attachments, emailEvents, emails } from "@/db/schema";
@@ -139,6 +139,9 @@ async function archiveOne(emailId: string, resendEmailId: string, attId: string,
 
 type OutboundEvent = Exclude<Extract<WebhookEventPayload, { type: `email.${string}` }>, { type: "email.received" }>;
 
+/** Opens of the same email closer together than this are one open. */
+const OPEN_DEDUPE_MS = 5 * 60_000;
+
 const LOGGED: Partial<Record<OutboundEvent["type"], { type: ActivityType; verb: string }>> = {
   "email.delivered": { type: "email.delivered", verb: "Delivered" },
   "email.opened": { type: "email.opened", verb: "Opened" },
@@ -163,6 +166,25 @@ export async function handleOutboundEvent(event: OutboundEvent, webhookId: strin
   if (event.type === "email.clicked") meta.click = { link: event.data.click.link, userAgent: event.data.click.userAgent };
   if (event.type === "email.failed") meta.failed = event.data.failed;
   if (event.type === "email.suppressed") meta.suppressed = event.data.suppressed;
+
+  // One real open often fires several tracking-pixel hits (Gmail's image proxy, prefetch, a reload),
+  // each its own webhook. Count them as one open.
+  if (event.type === "email.opened") {
+    const since = new Date(occurredAt.getTime() - OPEN_DEDUPE_MS).toISOString();
+    const until = new Date(occurredAt.getTime() + OPEN_DEDUPE_MS).toISOString();
+    const [recent] = await db()
+      .select({ id: emailEvents.id })
+      .from(emailEvents)
+      .where(
+        and(
+          eq(emailEvents.emailId, emailId),
+          eq(emailEvents.type, "email.opened"),
+          sql`${emailEvents.occurredAt} between ${since}::timestamptz and ${until}::timestamptz`,
+        ),
+      )
+      .limit(1);
+    if (recent) return { duplicate: true };
+  }
 
   const [inserted] = await db()
     .insert(emailEvents)

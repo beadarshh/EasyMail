@@ -70,7 +70,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: SP
         )}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Sent" value={t.sent} />
         <Stat label="Received" value={t.received} />
         <Stat label="Delivered" value={rate(t.delivered, t.sent)} hint={`${t.delivered} emails`} />
@@ -133,7 +133,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: SP
         <ProjectTable rows={stats.byProject} />
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <h2 className="mb-3 text-sm font-medium">Top contacts</h2>
           {stats.topContacts.length ? (
