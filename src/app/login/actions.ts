@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { admins, db } from "@/db";
 import { adminCount, endSession, startSession } from "@/lib/auth";
 import { hashPassword, passwordProblem, USERNAME_RE, verifyPassword } from "@/lib/password";
@@ -22,7 +23,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { error: "Incorrect username or password" };
   }
 
-  await db().update(admins).set({ lastLoginAt: new Date() }).where(eq(admins.id, admin.id));
+  after(() => db().update(admins).set({ lastLoginAt: new Date() }).where(eq(admins.id, admin.id)));
   await startSession(admin);
   redirect("/");
 }
