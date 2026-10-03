@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AuthShell } from "@/components/auth-shell";
-import { adminCount, currentAdmin } from "@/lib/auth";
+import { currentAdmin } from "@/lib/auth";
+import { adminCount } from "@/services/admin.service";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, use, useState } from "react";
-import { ChevronLeft, FolderKanban, Inbox, LayoutDashboard, LogOut, Menu, PenSquare, Send, Settings, X } from "lucide-react";
+import { BarChart3, ChevronLeft, FolderKanban, Inbox, LayoutDashboard, LogOut, Menu, PenSquare, Send, Settings, X } from "lucide-react";
 import { logout } from "@/app/login/actions";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
@@ -11,6 +11,7 @@ import { buttonStyles, cn, Meter } from "./ui";
 
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/inbox", label: "Inbox", icon: Inbox, badge: "unread" as const },
   { href: "/sent", label: "Sent", icon: Send },
   { href: "/projects", label: "Projects", icon: FolderKanban },

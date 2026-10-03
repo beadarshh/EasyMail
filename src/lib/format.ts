@@ -33,3 +33,7 @@ export function formatBytes(n: number) {
 }
 
 export const DISPLAY_TZ = TZ;
+
+export function rate(n: number, d: number) {
+  return d ? `${Math.round((n / d) * 1000) / 10}%` : "—";
+}

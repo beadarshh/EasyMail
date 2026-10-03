@@ -1,7 +1,7 @@
-import { asc, eq } from "drizzle-orm";
-import { contacts, db, emails, projects } from "@/db";
 import { isAuthed } from "@/lib/api-auth";
 import { utcDay } from "@/lib/mail-utils";
+import { exportEmailsFlat, exportEmailsFull } from "@/services/mail.service";
+import { allContacts } from "@/services/settings.service";
 
 function csvCell(v: unknown) {
   const s = v == null ? "" : Array.isArray(v) ? v.join("; ") : v instanceof Date ? v.toISOString() : String(v);
@@ -22,34 +22,9 @@ export async function GET(req: Request) {
   const stamp = utcDay();
 
   let rows: Record<string, unknown>[];
-  if (what === "contacts") {
-    rows = await db().select().from(contacts).orderBy(asc(contacts.address));
-  } else if (format === "csv") {
-    rows = await db()
-      .select({
-        id: emails.id,
-        direction: emails.direction,
-        source: emails.source,
-        project: projects.name,
-        sentAt: emails.sentAt,
-        from: emails.fromAddress,
-        to: emails.to,
-        cc: emails.cc,
-        subject: emails.subject,
-        status: emails.status,
-        opens: emails.opens,
-        clicks: emails.clicks,
-        deliveredAt: emails.deliveredAt,
-        firstOpenedAt: emails.firstOpenedAt,
-        threadId: emails.threadId,
-        text: emails.text,
-      })
-      .from(emails)
-      .leftJoin(projects, eq(projects.id, emails.projectId))
-      .orderBy(asc(emails.sentAt));
-  } else {
-    rows = await db().select().from(emails).orderBy(asc(emails.sentAt));
-  }
+  if (what === "contacts") rows = await allContacts();
+  else if (format === "csv") rows = await exportEmailsFlat();
+  else rows = await exportEmailsFull();
 
   const body = format === "csv" ? toCsv(rows) : JSON.stringify(rows, null, 2);
   return new Response(body, {

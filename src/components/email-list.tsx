@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Paperclip, Star } from "lucide-react";
-import type { EmailRow } from "@/lib/queries";
+import type { EmailRow } from "@/services/mail.service";
 import { cn, ProjectDot, StatusBadge } from "./ui";
 import { formatWhen } from "@/lib/format";
 

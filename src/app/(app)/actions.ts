@@ -1,34 +1,30 @@
 "use server";
 
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { admins, attachments, db, emails, identities, projects } from "@/db";
 import { requireSession, startSession } from "@/lib/auth";
 import { hashPassword, passwordProblem, USERNAME_RE, verifyPassword } from "@/lib/password";
-import { setSetting } from "@/lib/kv";
-import { normalizeMessageId, slugify } from "@/lib/mail-utils";
-import { STUCK_STATUSES as STUCK } from "@/lib/queries";
-import { nextStatus } from "@/lib/status";
+import { slugify } from "@/lib/mail-utils";
 import { resend, throttled } from "@/lib/resend";
-import { removeAttachments } from "@/lib/storage";
 import { connectWebhook, disconnectWebhook, recentDeliveries, replayDelivery, rotateWebhookSecret } from "@/lib/webhook-config";
+import { logActivity } from "@/services/activity.service";
+import * as admins from "@/services/admin.service";
+import * as mail from "@/services/mail.service";
+import * as projects from "@/services/project.service";
+import { setSetting } from "@/services/settings.service";
+
+// Server actions only check the session, validate input, call a service and refresh the page.
+// All database work lives in src/services.
 
 export async function setFlags(ids: string[], flags: { isRead?: boolean; isStarred?: boolean; isArchived?: boolean }) {
   await requireSession();
-  if (!ids.length) return;
-  await db().update(emails).set(flags).where(inArray(emails.id, ids));
+  await mail.setFlags(ids, flags);
   revalidatePath("/", "layout");
 }
 
 export async function deleteThread(threadId: string) {
-  await requireSession();
-  const rows = await db().select({ id: emails.id }).from(emails).where(eq(emails.threadId, threadId));
-  const files = rows.length
-    ? await db().select({ path: attachments.storagePath }).from(attachments).where(inArray(attachments.emailId, rows.map((r) => r.id)))
-    : [];
-  await removeAttachments(files.map((f) => f.path).filter((p): p is string => !!p));
-  await db().delete(emails).where(eq(emails.threadId, threadId));
+  const me = await requireSession();
+  await mail.deleteThread(threadId, me.username);
   revalidatePath("/", "layout");
 }
 
@@ -38,13 +34,13 @@ const projectSchema = z.object({
 });
 
 export async function createProject(_: unknown, formData: FormData) {
-  await requireSession();
+  const me = await requireSession();
   const parsed = projectSchema.safeParse({ name: formData.get("name"), color: formData.get("color") || undefined });
   if (!parsed.success) return { error: "Enter a project name" };
   const slug = slugify(parsed.data.name);
   if (!slug) return { error: "Name needs letters or numbers" };
   try {
-    await db().insert(projects).values({ ...parsed.data, slug });
+    await projects.createProject({ ...parsed.data, slug }, me.username);
   } catch {
     return { error: `A project with slug "${slug}" already exists` };
   }
@@ -53,8 +49,8 @@ export async function createProject(_: unknown, formData: FormData) {
 }
 
 export async function deleteProject(id: string) {
-  await requireSession();
-  await db().delete(projects).where(eq(projects.id, id));
+  const me = await requireSession();
+  await projects.deleteProject(id, me.username);
   revalidatePath("/", "layout");
 }
 
@@ -67,7 +63,7 @@ const identitySchema = z.object({
 });
 
 export async function createIdentity(_: unknown, formData: FormData) {
-  await requireSession();
+  const me = await requireSession();
   const parsed = identitySchema.safeParse({
     address: formData.get("address"),
     displayName: formData.get("displayName") || undefined,
@@ -77,48 +73,33 @@ export async function createIdentity(_: unknown, formData: FormData) {
   });
   if (!parsed.success) return { error: "Enter a valid email address" };
   try {
-    await db().insert(identities).values(parsed.data);
+    await projects.createIdentity(parsed.data, me.username);
   } catch {
     return { error: "That address already exists" };
-  }
-  // Attach earlier unassigned mail from/to this address to its project.
-  if (parsed.data.projectId) {
-    const addr = parsed.data.address;
-    await db()
-      .update(emails)
-      .set({ projectId: parsed.data.projectId })
-      .where(
-        and(
-          isNull(emails.projectId),
-          or(
-            and(eq(emails.direction, "outbound"), eq(emails.fromAddress, addr)),
-            and(eq(emails.direction, "inbound"), sql`array_to_string(${emails.to}, ',') ilike ${`%${addr}%`}`),
-          ),
-        ),
-      );
   }
   revalidatePath("/projects");
   return { ok: true };
 }
 
 export async function updateIdentityProject(id: string, projectId: string | null) {
-  await requireSession();
-  await db().update(identities).set({ projectId }).where(eq(identities.id, id));
+  const me = await requireSession();
+  await projects.updateIdentityProject(id, projectId, me.username);
   revalidatePath("/projects");
 }
 
 export async function deleteIdentity(id: string) {
-  await requireSession();
-  await db().delete(identities).where(eq(identities.id, id));
+  const me = await requireSession();
+  await projects.deleteIdentity(id, me.username);
   revalidatePath("/projects");
 }
 
 /** One API call: pull Resend's authoritative usage numbers. */
 export async function syncUsage() {
-  await requireSession();
+  const me = await requireSession();
   const { data, error } = await throttled(() => resend().usage.get());
   if (error || !data) return { error: error?.message ?? "Failed to fetch usage" };
   await setSetting("resend_usage", { ...data.emails, rate_limit: data.rate_limit, domains: data.domains, fetchedAt: new Date().toISOString() });
+  await logActivity({ type: "usage.synced", title: "Synced usage numbers from Resend", actor: me.username });
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -126,14 +107,14 @@ export async function syncUsage() {
 type FormState = { error?: string; ok?: string } | undefined;
 
 export async function createAdmin(_: FormState, formData: FormData): Promise<FormState> {
-  await requireSession();
+  const me = await requireSession();
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   if (!USERNAME_RE.test(username)) return { error: "Username: 3–32 characters, letters, numbers, . _ -" };
   const problem = passwordProblem(password);
   if (problem) return { error: problem };
   try {
-    await db().insert(admins).values({ username, passwordHash: await hashPassword(password) });
+    await admins.createAdmin(username, await hashPassword(password), me.username);
   } catch {
     return { error: "That username is taken" };
   }
@@ -149,11 +130,7 @@ export async function changeMyPassword(_: FormState, formData: FormData): Promis
   const problem = passwordProblem(next);
   if (problem) return { error: problem };
   if (next !== String(formData.get("confirm") ?? "")) return { error: "Passwords don't match" };
-  const [updated] = await db()
-    .update(admins)
-    .set({ passwordHash: await hashPassword(next), sessionVersion: sql`${admins.sessionVersion} + 1` })
-    .where(eq(admins.id, me.id))
-    .returning();
+  const updated = await admins.setPassword(me.id, await hashPassword(next));
   // Other devices are signed out (session version changed); keep this one signed in.
   await startSession(updated);
   return { ok: "Password changed. Other sessions were signed out." };
@@ -162,7 +139,7 @@ export async function changeMyPassword(_: FormState, formData: FormData): Promis
 export async function deleteAdmin(id: string) {
   const me = await requireSession();
   if (id === me.id) return { error: "You can't remove yourself" };
-  await db().delete(admins).where(eq(admins.id, id));
+  await admins.deleteAdmin(id, me.username);
   revalidatePath("/settings");
   return { ok: true };
 }
@@ -184,11 +161,12 @@ function publicBaseUrl(input: string): string | { error: string } {
 }
 
 export async function connectWebhookAction(_: FormState, formData: FormData): Promise<FormState> {
-  await requireSession();
+  const me = await requireSession();
   const base = publicBaseUrl(String(formData.get("baseUrl") ?? ""));
   if (typeof base !== "string") return base;
   try {
     const cfg = await connectWebhook(base);
+    await logActivity({ type: "webhook.connected", title: `Connected the Resend webhook (${cfg.endpoint})`, actor: me.username });
     revalidatePath("/settings");
     return { ok: `Connected: Resend will send events to ${cfg.endpoint}` };
   } catch (err) {
@@ -197,9 +175,10 @@ export async function connectWebhookAction(_: FormState, formData: FormData): Pr
 }
 
 export async function rotateWebhookAction() {
-  await requireSession();
+  const me = await requireSession();
   try {
     await rotateWebhookSecret();
+    await logActivity({ type: "webhook.rotated", title: "Rotated the webhook signing secret", actor: me.username });
     revalidatePath("/settings");
     return { ok: "Signing secret rotated" };
   } catch (err) {
@@ -208,9 +187,10 @@ export async function rotateWebhookAction() {
 }
 
 export async function disconnectWebhookAction() {
-  await requireSession();
+  const me = await requireSession();
   try {
     await disconnectWebhook();
+    await logActivity({ type: "webhook.disconnected", title: "Removed the webhook from Resend", actor: me.username });
     revalidatePath("/settings");
     return { ok: "Webhook removed from Resend" };
   } catch (err) {
@@ -242,42 +222,8 @@ export async function replayDeliveryAction(eventId: string) {
 // ask Resend for each email's last event. 1 API call per email, on click only.
 
 export async function refreshStuckStatuses() {
-  await requireSession();
-  const rows = await db()
-    .select({ id: emails.id, resendId: emails.resendId, status: emails.status, sentAt: emails.sentAt })
-    .from(emails)
-    .where(
-      and(
-        eq(emails.direction, "outbound"),
-        inArray(emails.status, STUCK),
-        sql`${emails.resendId} is not null`,
-        sql`${emails.sentAt} < now() - interval '5 minutes'`,
-      ),
-    )
-    .limit(25);
-
-  let updated = 0;
-  for (const row of rows) {
-    const { data, error } = await throttled(() => resend().emails.get(row.resendId!));
-    if (error || !data) continue;
-    const last = data.last_event === "canceled" ? "failed" : data.last_event;
-    const status = nextStatus(row.status, last);
-    if (status === row.status) continue;
-    const reached = (s: string) => ["delivered", "opened", "clicked"].includes(s);
-    await db()
-      .update(emails)
-      .set({
-        status,
-        messageId: sql`coalesce(${emails.messageId}, ${normalizeMessageId(data.message_id)})`,
-        deliveredAt: reached(status) ? sql`coalesce(${emails.deliveredAt}, ${row.sentAt.toISOString()}::timestamptz)` : undefined,
-        firstOpenedAt: ["opened", "clicked"].includes(status) ? sql`coalesce(${emails.firstOpenedAt}, ${row.sentAt.toISOString()}::timestamptz)` : undefined,
-        opens: ["opened", "clicked"].includes(status) ? sql`greatest(${emails.opens}, 1)` : undefined,
-        clicks: status === "clicked" ? sql`greatest(${emails.clicks}, 1)` : undefined,
-        bouncedAt: status === "bounced" ? new Date() : undefined,
-      })
-      .where(eq(emails.id, row.id));
-    updated++;
-  }
+  const me = await requireSession();
+  const result = await mail.refreshStuckStatuses(me.username);
   revalidatePath("/", "layout");
-  return { checked: rows.length, updated };
+  return result;
 }

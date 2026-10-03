@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq, inArray } from "drizzle-orm";
+import { after } from "next/server";
 import { Forward, Paperclip, Reply } from "lucide-react";
-import { db, emails } from "@/db";
 import { EmailFrame } from "@/components/email-frame";
 import { ThreadToolbar } from "@/components/thread-toolbar";
 import { buttonStyles, Card, ProjectDot, StatusBadge } from "@/components/ui";
 import { formatBytes, formatFull } from "@/lib/format";
 import { requireSession } from "@/lib/auth";
-import { getThread } from "@/lib/queries";
+import { getThread, markRead, threadSubject } from "@/services/mail.service";
 
 type Params = Promise<{ id: string }>;
 
@@ -18,8 +17,8 @@ const UUID = /^[0-9a-f-]{36}$/i;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params;
   if (!UUID.test(id)) return { title: "Conversation" };
-  const [first] = await db().select({ subject: emails.subject }).from(emails).where(eq(emails.threadId, id)).limit(1);
-  return { title: first?.subject || "Conversation" };
+  const subject = await threadSubject(id).catch(() => null);
+  return { title: subject || "Conversation" };
 }
 
 const EVENT_LABEL: Record<string, string> = {
@@ -44,7 +43,8 @@ export default async function ThreadPage({ params }: { params: Params }) {
 
   const unreadIds = thread.filter((m) => m.email.direction === "inbound" && !m.email.isRead).map((m) => m.email.id);
   if (unreadIds.length) {
-    await db().update(emails).set({ isRead: true }).where(inArray(emails.id, unreadIds));
+    // After the response: cache invalidation is not allowed during render, and the page needn't wait for it.
+    after(() => markRead(unreadIds));
   }
 
   const ids = thread.map((m) => m.email.id);

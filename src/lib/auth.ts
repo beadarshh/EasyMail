@@ -1,16 +1,11 @@
 import "server-only";
-import { count, eq } from "drizzle-orm";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import { redirect } from "next/navigation";
-import { admins, db, type Admin } from "@/db";
+import type { Admin } from "@/db/schema";
+import { getAdminById } from "@/services/admin.service";
 import { env } from "./env";
 import { SESSION_COOKIE, SESSION_MAX_AGE, signSession, verifySession } from "./session";
-
-export async function adminCount() {
-  const [r] = await db().select({ n: count() }).from(admins);
-  return r?.n ?? 0;
-}
 
 export async function startSession(admin: Pick<Admin, "id" | "sessionVersion">) {
   const token = await signSession({ sub: admin.id, ver: admin.sessionVersion }, env().SESSION_SECRET);
@@ -34,7 +29,7 @@ export async function endSession() {
 export const currentAdmin = cache(async (): Promise<Admin | null> => {
   const claims = await verifySession((await cookies()).get(SESSION_COOKIE)?.value, env().SESSION_SECRET);
   if (!claims || !/^[0-9a-f-]{36}$/i.test(claims.sub)) return null;
-  const [admin] = await db().select().from(admins).where(eq(admins.id, claims.sub));
+  const admin = await getAdminById(claims.sub);
   if (!admin || admin.sessionVersion !== claims.ver) return null;
   return admin;
 });

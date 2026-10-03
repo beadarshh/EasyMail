@@ -1,7 +1,7 @@
 import "server-only";
 import type { WebhookEvent } from "resend";
 import { env } from "./env";
-import { deleteSetting, getSetting, setSetting } from "./kv";
+import { deleteSetting, getSetting, setSetting } from "@/services/settings.service";
 import { resend, throttled } from "./resend";
 
 /** Every email.* event EasyMail understands. contact/domain/topic events aren't needed. */

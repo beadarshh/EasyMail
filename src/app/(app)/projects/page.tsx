@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { DeleteProjectButton, IdentityRowControls, NewIdentityForm, NewProjectForm } from "@/components/project-forms";
 import { Card, PageHeader } from "@/components/ui";
 import { requireSession } from "@/lib/auth";
-import { listIdentities, listProjects } from "@/lib/queries";
+import { listIdentities, listProjects } from "@/services/project.service";
 
 export const metadata: Metadata = { title: "Projects" };
 

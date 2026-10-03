@@ -1,18 +1,6 @@
 import "server-only";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { env, storageEnabled } from "./env";
-
-let client: SupabaseClient | undefined;
-
-function supabase() {
-  if (!client) {
-    const e = env();
-    client = createClient(e.SUPABASE_URL!, e.SUPABASE_SERVICE_ROLE_KEY!, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
-  }
-  return client;
-}
+import { env, storageEnabled } from "@/lib/env";
+import { supabase } from "./supabase";
 
 export async function uploadAttachment(path: string, body: ArrayBuffer, contentType: string) {
   if (!storageEnabled()) return null;

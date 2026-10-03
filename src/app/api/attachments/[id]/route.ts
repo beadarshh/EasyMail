@@ -1,19 +1,14 @@
-import { eq } from "drizzle-orm";
-import { attachments, db, emails } from "@/db";
 import { isAuthed } from "@/lib/api-auth";
 import { resend, throttled } from "@/lib/resend";
-import { signedAttachmentUrl } from "@/lib/storage";
+import { getAttachmentForDownload } from "@/services/mail.service";
+import { signedAttachmentUrl } from "@/services/storage.service";
 
 export async function GET(_req: Request, ctx: RouteContext<"/api/attachments/[id]">) {
   if (!(await isAuthed())) return new Response("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return new Response("Not found", { status: 404 });
 
-  const [row] = await db()
-    .select({ a: attachments, resendEmailId: emails.resendId, direction: emails.direction })
-    .from(attachments)
-    .innerJoin(emails, eq(emails.id, attachments.emailId))
-    .where(eq(attachments.id, id));
+  const row = await getAttachmentForDownload(id);
   if (!row) return new Response("Not found", { status: 404 });
 
   // Archived copy: free, no Resend call.

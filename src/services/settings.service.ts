@@ -1,9 +1,10 @@
 import "server-only";
 import { eq, sql } from "drizzle-orm";
-import { contacts, db, settings } from "@/db";
+import { contacts, settings } from "@/db/schema";
+import { db, readDb } from "./supabase";
 
 export async function getSetting<T>(key: string): Promise<T | null> {
-  const [row] = await db().select().from(settings).where(eq(settings.key, key));
+  const [row] = await readDb(() => db().select().from(settings).where(eq(settings.key, key)));
   return (row?.value as T) ?? null;
 }
 
@@ -12,6 +13,10 @@ export async function setSetting(key: string, value: unknown) {
     .insert(settings)
     .values({ key, value })
     .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: new Date() } });
+}
+
+export async function deleteSetting(key: string) {
+  await db().delete(settings).where(eq(settings.key, key));
 }
 
 export async function touchContact(address: string, name: string | null, kind: "sent" | "received", at: Date) {
@@ -37,6 +42,6 @@ export async function touchContact(address: string, name: string | null, kind: "
     });
 }
 
-export async function deleteSetting(key: string) {
-  await db().delete(settings).where(eq(settings.key, key));
+export async function allContacts() {
+  return readDb(() => db().select().from(contacts).orderBy(contacts.address));
 }

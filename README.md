@@ -32,6 +32,22 @@ Resend ──webhooks (signed)──► /api/webhooks/resend ──► Supabase 
 Next.js UI (Vercel) ── server actions ── quota guard ── Resend SDK
 ```
 
+### Services
+
+All Supabase access (Postgres and Storage) lives in `src/services/`. Pages, server actions and API routes only check the session, call a service and render.
+
+| File | Responsibility |
+|---|---|
+| `supabase.ts` | The connections: Postgres pool, Supabase JS client, and `readDb()` (timeout plus one reconnect-and-retry for reads) |
+| `mail.service.ts` | Inbox/sent lists, threads, flags, deletes, exports, delivery-status refresh |
+| `send.service.ts` | Sending mail: quota check, Resend, storing the message, contacts, attachments |
+| `inbound.service.ts` | Webhook processing: received mail and delivery/open/click/bounce events |
+| `analytics.service.ts` | Statistics for the Analytics page (cached) |
+| `activity.service.ts` | The activity log: every send, receive, delivery event, sign-in and admin change |
+| `quota.service.ts`, `project.service.ts`, `admin.service.ts`, `settings.service.ts`, `storage.service.ts` | Usage counters, projects and addresses, admins, key/value settings and contacts, attachment storage |
+
+Every notable event is written once to the `activity_log` table (kept for 90 days). The dashboard reads that table plus cached statistics, so reloading it or switching filters does not re-run the queries. The cache is refreshed the moment something new is logged.
+
 Stack: Next.js 16 (App Router), Tailwind CSS 4, Drizzle ORM, Supabase, Resend SDK, Recharts, Tiptap.
 
 ## Setup
@@ -42,6 +58,7 @@ Stack: Next.js 16 (App Router), Tailwind CSS 4, Drizzle ORM, Supabase, Resend SD
 3. Note four values. EasyMail builds the database connection strings from them:
    - `SUPABASE_URL`: the project URL, `https://<ref>.supabase.co`
    - `SUPABASE_SERVICE_ROLE_KEY`: the secret/service-role key from Project Settings → API keys
+   - `SUPABASE_ANON_KEY` (optional): the public key. Storage uses the service-role key when it is set and falls back to this one otherwise. With only the anon key, the `attachments` bucket needs Storage policies that allow it to upload, read and delete; the database is unaffected because it connects with `SUPABASE_DB_PASSWORD`.
    - `SUPABASE_DB_PASSWORD`: the database password, written as-is (no URL-encoding)
    - `SUPABASE_REGION`: from **Connect**, where the pooler host is `aws-0-<region>.pooler.supabase.com`, e.g. `ap-northeast-1`. If your host starts with `aws-1-`, use the full `aws-1-<region>` instead.
 
